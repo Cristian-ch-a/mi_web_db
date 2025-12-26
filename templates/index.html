@@ -1,66 +1,35 @@
-import os
-from flask import Flask, render_template, request, jsonify
-import psycopg2
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi Web con DB</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Usuarios</h1>
 
-app = Flask(__name__)
+    <section class="card">
+      <h2>Agregar usuario</h2>
+      <form id="form">
+        <label>Nombre</label>
+        <input id="nombre" placeholder="Ej: Cristian" required>
 
-DATABASE_URL = os.environ.get("DATABASE_URL")  # Render la pondrá aquí
+        <label>Email</label>
+        <input id="email" type="email" placeholder="Ej: cristian@mail.com" required>
 
-def get_conn():
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL no está configurada")
-    return psycopg2.connect(DATABASE_URL)
+        <button type="submit">Guardar</button>
+        <p id="msg" class="msg"></p>
+      </form>
+    </section>
 
-def init_db():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS usuarios (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL,
-                    email TEXT NOT NULL UNIQUE
-                )
-            """)
-        conn.commit()
+    <section class="card">
+      <h2>Listado</h2>
+      <div id="lista" class="lista"></div>
+    </section>
+  </main>
 
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-@app.route("/api/usuarios", methods=["GET"])
-def listar_usuarios():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, nombre, email FROM usuarios ORDER BY id DESC")
-            rows = cur.fetchall()
-
-    usuarios = [{"id": r[0], "nombre": r[1], "email": r[2]} for r in rows]
-    return jsonify(usuarios)
-
-@app.route("/api/usuarios", methods=["POST"])
-def crear_usuario():
-    data = request.get_json(force=True)
-    nombre = (data.get("nombre") or "").strip()
-    email = (data.get("email") or "").strip()
-
-    if not nombre or not email:
-        return jsonify({"error": "Faltan datos: nombre y email"}), 400
-
-    try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO usuarios (nombre, email) VALUES (%s, %s) RETURNING id",
-                    (nombre, email)
-                )
-                new_id = cur.fetchone()[0]
-            conn.commit()
-        return jsonify({"id": new_id, "nombre": nombre, "email": email})
-    except psycopg2.errors.UniqueViolation:
-        return jsonify({"error": "Ese email ya existe"}), 400
-
-if __name__ == "__main__":
-    # En Render lo ejecutará gunicorn, no este bloque,
-    # pero sirve para correr local si tienes DATABASE_URL.
-    init_db()
-    app.run(debug=True)
+  <script src="/static/app.js"></script>
+</body>
+</html>
